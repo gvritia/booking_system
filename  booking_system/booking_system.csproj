@@ -34,6 +34,7 @@
     </PropertyGroup>
     <ItemGroup>
         <Reference Include="Microsoft.VisualBasic" />
+        <Reference Include="Microsoft.VisualBasic.Compatibility" />
         <Reference Include="System"/>
         <Reference Include="System.Core"/>
         <Reference Include="System.Xml.Linq"/>
@@ -60,6 +61,7 @@
         <Compile Include="Program.cs"/>
         <Compile Include="Properties\AssemblyInfo.cs"/>
         <Compile Include="reservation.cs" />
+        <Compile Include="SelectionDialog.cs" />
         <Compile Include="Table.cs" />
         <EmbeddedResource Include="Properties\Resources.resx">
             <Generator>ResXFileCodeGenerator</Generator>

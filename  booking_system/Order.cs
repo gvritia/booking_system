@@ -73,17 +73,19 @@ public class Order
     }
     
     // ИСПРАВЛЕНИЕ: Используются свойства TableID и WaiterID вместо аргументов
-    public string GenerateReceipt() 
+// ... (остальной код класса Order)
+
+    public string GenerateReceipt() // <-- ИЗМЕНЕНО: Аргументы удалены
     {
         if (ClosureTime == null) return "Заказ не закрыт. Чек недоступен.";
 
         var sb = new StringBuilder();
         sb.AppendLine("*************************************************");
-        sb.AppendLine($"Столик: {TableID}"); // Используем свойство
-        sb.AppendLine($"Официант: ID {WaiterID}"); // Используем свойство
+        sb.AppendLine($"Столик: {TableID}"); // <-- ИСПОЛЬЗУЕМ ВНУТРЕННЕЕ ПОЛЕ
+        sb.AppendLine($"Официант: ID {WaiterID}"); // <-- ИСПОЛЬЗУЕМ ВНУТРЕННЕЕ ПОЛЕ
         sb.AppendLine($"Период обслуживания: с {AcceptanceTime:HH:mm} по {ClosureTime:HH:mm}");
         sb.AppendLine();
-        
+    
         var groupedItems = Items.GroupBy(item => item.Dish.Category).OrderBy(g => g.Key);
 
         foreach (var group in groupedItems)
@@ -101,7 +103,9 @@ public class Order
 
         sb.AppendLine($"Итог счета: {TotalCost:C}");
         sb.AppendLine("*************************************************");
-        
+    
         return sb.ToString();
     }
+
+// ... (конец класса Order)
 }
