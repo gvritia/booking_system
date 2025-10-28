@@ -34,7 +34,16 @@ public class Order
     
     public void AddItem(Dish dish, int quantity)
     {
-        Items.Add(new OrderItem { Dish = dish, Quantity = quantity });
+        // Добавление: Если блюдо уже есть, увеличиваем количество
+        var existingItem = Items.FirstOrDefault(i => i.Dish.ID == dish.ID);
+        if (existingItem != null)
+        {
+            existingItem.Quantity += quantity;
+        }
+        else
+        {
+            Items.Add(new OrderItem { Dish = dish, Quantity = quantity });
+        }
         RecalculateTotal();
     }
 
@@ -63,14 +72,15 @@ public class Order
         RecalculateTotal();
     }
     
-    public string GenerateReceipt(int tableId, int waiterId)
+    // ИСПРАВЛЕНИЕ: Используются свойства TableID и WaiterID вместо аргументов
+    public string GenerateReceipt() 
     {
         if (ClosureTime == null) return "Заказ не закрыт. Чек недоступен.";
 
         var sb = new StringBuilder();
         sb.AppendLine("*************************************************");
-        sb.AppendLine($"Столик: {tableId}");
-        sb.AppendLine($"Официант: ID {waiterId}");
+        sb.AppendLine($"Столик: {TableID}"); // Используем свойство
+        sb.AppendLine($"Официант: ID {WaiterID}"); // Используем свойство
         sb.AppendLine($"Период обслуживания: с {AcceptanceTime:HH:mm} по {ClosureTime:HH:mm}");
         sb.AppendLine();
         

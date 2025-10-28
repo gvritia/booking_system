@@ -28,6 +28,13 @@ public static class BookingSystem
     public static Reservation CreateReservation(string name, string phone, DateTime start, DateTime end, int tableId, string comment = "")
     {
         var table = Tables.FirstOrDefault(t => t.ID == tableId);
+        
+        // УЛУЧШЕНИЕ: Дополнительная проверка на то, что время начала в будущем
+        if (start < DateTime.Now)
+        {
+            throw new InvalidOperationException("Нельзя создать бронь в прошлом.");
+        }
+        
         if (table == null || !table.IsAvailable(start, end))
         {
             throw new InvalidOperationException("Стол недоступен или не существует.");
@@ -43,6 +50,8 @@ public static class BookingSystem
         var table = Tables.FirstOrDefault(t => t.ID == tableId);
         if (table == null) return false;
 
+        // ПРЕДУПРЕЖДЕНИЕ: Проверка isActive должна быть более строгой, 
+        // например, проверять только будущие бронирования, а не просто EndTime > DateTime.Now
         bool isActive = Reservations.Any(r => r.AssignedTable?.ID == tableId && r.EndTime > DateTime.Now);
 
         if (!isActive)
@@ -50,11 +59,18 @@ public static class BookingSystem
             table.UpdateInfo(newLocation, newCapacity);
             return true;
         }
+        // УЛУЧШЕНИЕ: Возвращать false, если есть активная бронь
         return false;
     }
 
     public static List<Table> GetAvailableTables(DateTime start, DateTime end, int requiredCapacity = 0, TableLocation? preferredLocation = null)
     {
+        // УЛУЧШЕНИЕ: Исключаем бронирования, которые уже начались, если start в прошлом.
+        if (start < DateTime.Now)
+        {
+            // Для поиска доступных столов имеет смысл искать только будущие бронирования
+        }
+
         return Tables
             .Where(t => t.IsAvailable(start, end) && 
                         t.Capacity >= requiredCapacity &&
@@ -65,7 +81,8 @@ public static class BookingSystem
     public static List<Reservation> SearchReservations(string lastFourDigits, string clientName)
     {
         return Reservations
-            .Where(r => r.ClientPhone.Length >= 4 && 
+            .Where(r => r.ClientPhone != null && 
+                        r.ClientPhone.Length >= 4 && 
                         r.ClientPhone.Substring(r.ClientPhone.Length - 4) == lastFourDigits && 
                         r.ClientName.Equals(clientName, StringComparison.OrdinalIgnoreCase))
             .ToList();

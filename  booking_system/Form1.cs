@@ -13,17 +13,20 @@ namespace booking_system
         private DataGridView dgvTables;
         private DataGridView dgvReservations;
         private DataGridView dgvMenu;
-        private DataGridView dgvOrders;
+        private DataGridView dgvOrders; // Теперь будет показывать ВСЕ заказы
 
         // Поля ввода для поиска бронирования
         private TextBox txtSearchName;
         private TextBox txtSearchPhoneLast4;
         private ListBox lbSearchResults;
+        
+        // Элементы статистики для быстрого доступа
+        private Label lblRevenue;
+        private ListBox lbDishStats;
+
 
         public Form1()
         {
-            // Здесь предполагается вызов InitializeComponent() из Designer.cs.
-            // Если вы не используете дизайнер, то просто оставляете SetupUI().
             // InitializeComponent(); 
             
             // Инициализация данных
@@ -108,12 +111,16 @@ namespace booking_system
             AddButton(buttonPanel, "Обновить", (s, e) => { UpdateTablesView(); UpdateReservationsView(); }, Color.FromArgb(60, 60, 60));
 
             // --- Таблица Столов (Row 1, Col 0) ---
-            dgvTables = CreateDataGridView("Столы");
-            mainLayout.Controls.Add(dgvTables, 0, 1);
+            dgvTables = CreateDataGridView();
+            GroupBox tableGroup = new GroupBox { Text = "Столы", Dock = DockStyle.Fill, ForeColor = Color.White };
+            tableGroup.Controls.Add(dgvTables);
+            mainLayout.Controls.Add(tableGroup, 0, 1);
 
             // --- Таблица Бронирований (Row 1, Col 1) ---
-            dgvReservations = CreateDataGridView("Бронирования");
-            mainLayout.Controls.Add(dgvReservations, 1, 1);
+            dgvReservations = CreateDataGridView();
+            GroupBox resGroup = new GroupBox { Text = "Бронирования", Dock = DockStyle.Fill, ForeColor = Color.White };
+            resGroup.Controls.Add(dgvReservations);
+            mainLayout.Controls.Add(resGroup, 1, 1);
             
             // --- Панель Поиска (Row 2, Span 2) ---
             GroupBox searchGroup = new GroupBox { Text = "Поиск Бронирования", Dock = DockStyle.Fill, ForeColor = Color.White };
@@ -164,16 +171,20 @@ namespace booking_system
             AddButton(buttonPanel, "Добавить Блюдо в Заказ", BtnAddDishToOrder_Click, Color.FromArgb(150, 150, 0));
             AddButton(buttonPanel, "Закрыть Заказ", BtnCloseOrder_Click, Color.FromArgb(0, 150, 0));
             AddButton(buttonPanel, "Вывести Чек", BtnPrintReceipt_Click, Color.FromArgb(100, 100, 100));
-            AddButton(buttonPanel, "Обновить", (s, e) => { UpdateOrdersView(); UpdateMenuView(); }, Color.FromArgb(60, 60, 60));
+            AddButton(buttonPanel, "Обновить", (s, e) => { UpdateOrdersView(); UpdateMenuView(); UpdateStatistics(); }, Color.FromArgb(60, 60, 60));
 
 
             // --- Таблица Меню (Row 1, Col 0) ---
-            dgvMenu = CreateDataGridView("Меню");
-            mainLayout.Controls.Add(dgvMenu, 0, 1);
+            dgvMenu = CreateDataGridView();
+            GroupBox menuGroup = new GroupBox { Text = "Меню", Dock = DockStyle.Fill, ForeColor = Color.White };
+            menuGroup.Controls.Add(dgvMenu);
+            mainLayout.Controls.Add(menuGroup, 0, 1);
 
             // --- Таблица Заказов (Row 1, Col 1) ---
-            dgvOrders = CreateDataGridView("Активные Заказы");
-            mainLayout.Controls.Add(dgvOrders, 1, 1);
+            dgvOrders = CreateDataGridView();
+            GroupBox ordersGroup = new GroupBox { Text = "Заказы (Активные и Закрытые)", Dock = DockStyle.Fill, ForeColor = Color.White };
+            ordersGroup.Controls.Add(dgvOrders);
+            mainLayout.Controls.Add(ordersGroup, 1, 1);
             
             // --- Панель Статистики (Row 2, Span 2) ---
             GroupBox statsGroup = new GroupBox { Text = "Статистика", Dock = DockStyle.Fill, ForeColor = Color.White };
@@ -184,7 +195,7 @@ namespace booking_system
             statsGroup.Controls.Add(statsLayout);
 
             // Общая выручка
-            Label lblRevenue = new Label { Text = "Общая выручка: N/A", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
+            lblRevenue = new Label { Text = "Общая выручка: N/A", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
             statsLayout.Controls.Add(lblRevenue, 0, 0);
 
             // Заказы официанта
@@ -204,17 +215,14 @@ namespace booking_system
             };
             
             // Статистика по блюдам
-            ListBox lbDishStats = new ListBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(70, 70, 70), ForeColor = Color.White };
+            lbDishStats = new ListBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(70, 70, 70), ForeColor = Color.White };
             statsLayout.Controls.Add(lbDishStats, 2, 0);
 
-            // Обновление статистики (вызывается при Обновлении)
-            statsGroup.Click += (s, e) => UpdateStatistics(lblRevenue, lbDishStats); 
-            
-            UpdateStatistics(lblRevenue, lbDishStats);
+            UpdateStatistics();
         }
 
         // Вспомогательный метод для создания DataGridView
-        private DataGridView CreateDataGridView(string header)
+        private DataGridView CreateDataGridView()
         {
             var dgv = new DataGridView
             {
@@ -236,10 +244,7 @@ namespace booking_system
             dgv.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
             dgv.EnableHeadersVisualStyles = false;
             
-            // Добавляем заголовок
-            GroupBox group = new GroupBox { Text = header, Dock = DockStyle.Fill, ForeColor = Color.White };
-            group.Controls.Add(dgv);
-            
+            // Важное улучшение: возвращаем только DataGridView
             return dgv;
         }
 
@@ -279,7 +284,7 @@ namespace booking_system
         private void UpdateReservationsView()
         {
             dgvReservations.DataSource = BookingSystem.Reservations
-                .Where(r => r.AssignedTable != null) // Показываем только активные брони
+                .Where(r => r.AssignedTable != null && r.EndTime > DateTime.Now) // Только будущие/активные
                 .Select(r => new
                 {
                     ID = r.ID,
@@ -305,22 +310,27 @@ namespace booking_system
                 }).ToList();
         }
         
+        // ИЗМЕНЕНИЕ: Теперь показывает ВСЕ заказы (активные и закрытые)
         private void UpdateOrdersView()
         {
             dgvOrders.DataSource = OrderingSystem.Orders
-                .Where(o => !o.ClosureTime.HasValue) // Только активные
+                .OrderByDescending(o => o.ClosureTime.HasValue) // Закрытые вниз
                 .Select(o => new
                 {
                     ID = o.ID,
                     Стол = o.TableID,
                     Официант = o.WaiterID,
                     Время = o.AcceptanceTime.ToString("HH:mm"),
+                    Статус = o.ClosureTime.HasValue ? "Закрыт" : "Активен",
                     Итог = o.TotalCost
                 }).ToList();
         }
         
-        private void UpdateStatistics(Label lblRevenue, ListBox lbDishStats)
+        // ИЗМЕНЕНИЕ: Не принимает аргументы, использует поля класса
+        private void UpdateStatistics()
         {
+            if (lblRevenue == null || lbDishStats == null) return; // Проверка на инициализацию
+            
             lblRevenue.Text = $"Общая выручка: {OrderingSystem.GetTotalRevenue():C}";
             
             lbDishStats.Items.Clear();
@@ -345,64 +355,93 @@ namespace booking_system
             if (!int.TryParse(capacityStr, out int capacity)) return;
 
             // Пример: ищем свободный стол на 4 места в 12:00
-            var startTime = DateTime.Now.Date.AddHours(12); 
+            // ИЗМЕНЕНИЕ: используем ближайший час для текущей даты, чтобы бронь была в будущем
+            DateTime now = DateTime.Now;
+            var startTime = now.Date.AddHours(now.Hour < 22 ? now.Hour + 1 : 12); 
             var endTime = startTime.AddHours(2);
             
-            var availableTable = BookingSystem.GetAvailableTables(startTime, endTime, capacity).FirstOrDefault();
+            try
+            {
+                 var availableTable = BookingSystem.GetAvailableTables(startTime, endTime, capacity).FirstOrDefault();
 
-            if (availableTable != null)
-            {
-                BookingSystem.CreateReservation(name, phone, startTime, endTime, availableTable.ID);
-                MessageBox.Show($"Бронь для {name} на стол {availableTable.ID} создана (12:00-14:00)!", "Успех");
-                UpdateTablesView();
-                UpdateReservationsView();
+                if (availableTable != null)
+                {
+                    BookingSystem.CreateReservation(name, phone, startTime, endTime, availableTable.ID);
+                    MessageBox.Show($"Бронь для {name} на стол {availableTable.ID} создана ({startTime:HH:mm}-{endTime:HH:mm})!", "Успех");
+                    UpdateTablesView();
+                    UpdateReservationsView();
+                }
+                else
+                {
+                    MessageBox.Show("Нет свободных столов, удовлетворяющих условиям.", "Ошибка");
+                }
             }
-            else
+            catch (InvalidOperationException ex)
             {
-                MessageBox.Show("Нет свободных столов, удовлетворяющих условиям.", "Ошибка");
+                 MessageBox.Show(ex.Message, "Ошибка Бронирования");
             }
         }
 
         private void BtnCancelReservation_Click(object sender, EventArgs e)
         {
-            if (dgvReservations.SelectedRows.Count == 0) return;
+            if (dgvReservations.SelectedRows.Count == 0)
+            {
+                 MessageBox.Show("Выберите бронь для отмены.", "Внимание");
+                 return;
+            }
 
-            int reservationId = (int)dgvReservations.SelectedRows[0].Cells["ID"].Value;
+            // ИЗМЕНЕНИЕ: ID берется из выбранной строки
+            if (!int.TryParse(dgvReservations.SelectedRows[0].Cells["ID"].Value.ToString(), out int reservationId)) return;
+            
             var res = BookingSystem.Reservations.FirstOrDefault(r => r.ID == reservationId);
 
             if (res != null && MessageBox.Show($"Отменить бронь ID {reservationId}?", "Подтверждение", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
-                res.Cancel();
-                BookingSystem.Reservations.Remove(res);
+                res.Cancel(); // Сначала очищаем расписание стола
+                BookingSystem.Reservations.Remove(res); // Затем удаляем из списка
                 UpdateTablesView();
                 UpdateReservationsView();
+                MessageBox.Show($"Бронь ID {reservationId} отменена.", "Успех");
             }
         }
         
         private void BtnShowTableInfo_Click(object sender, EventArgs e)
         {
-            if (dgvTables.SelectedRows.Count == 0) return;
+            if (dgvTables.SelectedRows.Count == 0)
+            {
+                 MessageBox.Show("Выберите стол для просмотра информации.", "Внимание");
+                 return;
+            }
 
-            int tableId = (int)dgvTables.SelectedRows[0].Cells["ID"].Value;
+            // ИЗМЕНЕНИЕ: ID берется из выбранной строки
+            if (!int.TryParse(dgvTables.SelectedRows[0].Cells["ID"].Value.ToString(), out int tableId)) return;
+
             var table = BookingSystem.Tables.FirstOrDefault(t => t.ID == tableId);
 
             if (table != null)
             {
+                // ПРИМЕЧАНИЕ: Для корректной работы GetDetailedInfo() требуется, 
+                // чтобы BookingSystem.Reservations был доступен внутри Table.cs
                 MessageBox.Show(table.GetDetailedInfo(), $"Подробная информация о столе ID {tableId}");
             }
         }
         
         private void BtnEditTable_Click(object sender, EventArgs e)
         {
-             if (dgvTables.SelectedRows.Count == 0) return;
+             if (dgvTables.SelectedRows.Count == 0)
+             {
+                 MessageBox.Show("Выберите стол для редактирования.", "Внимание");
+                 return;
+             }
 
-            int tableId = (int)dgvTables.SelectedRows[0].Cells["ID"].Value;
+            // ИЗМЕНЕНИЕ: ID берется из выбранной строки
+            if (!int.TryParse(dgvTables.SelectedRows[0].Cells["ID"].Value.ToString(), out int tableId)) return;
             var table = BookingSystem.Tables.FirstOrDefault(t => t.ID == tableId);
 
             if (table != null)
             {
                 string newCapacityStr = Microsoft.VisualBasic.Interaction.InputBox($"Новая вместимость для стола {tableId}:", "Редактирование стола", table.Capacity.ToString());
-                if (int.TryParse(newCapacityStr, out int newCapacity))
+                if (int.TryParse(newCapacityStr, out int newCapacity) && newCapacity > 0)
                 {
                     // Пропускаем изменение расположения для простоты ввода
                     if (BookingSystem.EditTableInfo(tableId, table.Location, newCapacity))
@@ -414,6 +453,10 @@ namespace booking_system
                     {
                         MessageBox.Show("Невозможно редактировать: стол фигурирует в активном бронировании.", "Ошибка");
                     }
+                }
+                else
+                {
+                    MessageBox.Show("Некорректное значение вместимости.", "Ошибка Ввода");
                 }
             }
         }
@@ -456,42 +499,75 @@ namespace booking_system
 
             if (int.TryParse(tableIdStr, out int tableId) && int.TryParse(waiterIdStr, out int waiterId))
             {
+                // ИСПРАВЛЕНИЕ: Проверка на активный заказ
+                if (OrderingSystem.Orders.Any(o => o.TableID == tableId && !o.ClosureTime.HasValue))
+                {
+                    MessageBox.Show($"На столе {tableId} уже есть активный заказ.", "Ошибка Создания Заказа");
+                    return;
+                }
+                
                 var order = OrderingSystem.CreateOrder(tableId, waiterId);
                 MessageBox.Show($"Создан новый заказ ID {order.ID} для стола {tableId}.", "Успех");
                 UpdateOrdersView();
+            }
+            else
+            {
+                MessageBox.Show("Некорректный ввод ID стола или официанта.", "Ошибка Ввода");
             }
         }
 
         private void BtnAddDishToOrder_Click(object sender, EventArgs e)
         {
-            if (dgvOrders.SelectedRows.Count == 0 || dgvMenu.SelectedRows.Count == 0)
+            if (dgvOrders.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Выберите активный заказ (справа) и блюдо (слева).", "Внимание");
+                MessageBox.Show("Выберите активный заказ.", "Внимание");
+                return;
+            }
+             if (dgvMenu.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Выберите блюдо.", "Внимание");
                 return;
             }
 
-            int orderId = (int)dgvOrders.SelectedRows[0].Cells["ID"].Value;
-            int dishId = (int)dgvMenu.SelectedRows[0].Cells["ID"].Value;
+            // ИЗМЕНЕНИЕ: ID берется из выбранной строки
+            if (!int.TryParse(dgvOrders.SelectedRows[0].Cells["ID"].Value.ToString(), out int orderId)) return;
+            if (!int.TryParse(dgvMenu.SelectedRows[0].Cells["ID"].Value.ToString(), out int dishId)) return;
+            
             var order = OrderingSystem.Orders.FirstOrDefault(o => o.ID == orderId);
             var dish = OrderingSystem.Menu.FirstOrDefault(d => d.ID == dishId);
 
             if (order != null && dish != null)
             {
-                 string quantityStr = Microsoft.VisualBasic.Interaction.InputBox("Количество:", "Добавить Блюдо", "1");
+                 if (order.ClosureTime.HasValue)
+                 {
+                     MessageBox.Show("Нельзя добавлять блюда в закрытый заказ.", "Ошибка");
+                     return;
+                 }
+                
+                 string quantityStr = Microsoft.VisualBasic.Interaction.InputBox($"Количество {dish.Name}:", "Добавить Блюдо", "1");
                  if (int.TryParse(quantityStr, out int quantity) && quantity > 0)
                  {
                     order.AddItem(dish, quantity);
-                    MessageBox.Show($"Добавлено {quantity}x {dish.Name} в заказ {orderId}.", "Успех");
+                    MessageBox.Show($"Добавлено {quantity}x {dish.Name} в заказ {orderId}. Итог: {order.TotalCost:C}", "Успех");
                     UpdateOrdersView(); // Обновим, чтобы увидеть новую итоговую стоимость
+                 }
+                 else
+                 {
+                     MessageBox.Show("Некорректное количество.", "Ошибка Ввода");
                  }
             }
         }
 
         private void BtnCloseOrder_Click(object sender, EventArgs e)
         {
-             if (dgvOrders.SelectedRows.Count == 0) return;
+             if (dgvOrders.SelectedRows.Count == 0)
+             {
+                  MessageBox.Show("Выберите заказ для закрытия.", "Внимание");
+                  return;
+             }
 
-            int orderId = (int)dgvOrders.SelectedRows[0].Cells["ID"].Value;
+            // ИЗМЕНЕНИЕ: ID берется из выбранной строки
+            if (!int.TryParse(dgvOrders.SelectedRows[0].Cells["ID"].Value.ToString(), out int orderId)) return;
             var order = OrderingSystem.Orders.FirstOrDefault(o => o.ID == orderId);
 
             if (order != null && !order.ClosureTime.HasValue)
@@ -499,11 +575,11 @@ namespace booking_system
                 order.CloseOrder();
                 MessageBox.Show($"Заказ ID {orderId} закрыт. Итого: {order.TotalCost:C}", "Заказ закрыт");
                 UpdateOrdersView();
-                // Обновляем статистику
-                TabPage ordersPage = (TabPage)this.Controls.OfType<TabControl>().First().Controls.OfType<TabPage>().Skip(1).First();
-                var statsGroup = ordersPage.Controls.OfType<TableLayoutPanel>().First().Controls.OfType<GroupBox>().Last();
-                UpdateStatistics(statsGroup.Controls.OfType<TableLayoutPanel>().First().Controls.OfType<Label>().First(), 
-                                 statsGroup.Controls.OfType<TableLayoutPanel>().First().Controls.OfType<ListBox>().First());
+                UpdateStatistics(); // Вызываем просто метод обновления статистики
+            }
+            else if (order != null && order.ClosureTime.HasValue)
+            {
+                MessageBox.Show("Этот заказ уже закрыт.", "Внимание");
             }
         }
 
@@ -511,21 +587,23 @@ namespace booking_system
         {
             if (dgvOrders.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Выберите закрытый заказ.", "Внимание");
+                MessageBox.Show("Выберите заказ для печати чека.", "Внимание");
                 return;
             }
             
-            int orderId = (int)dgvOrders.SelectedRows[0].Cells["ID"].Value;
+            // ИЗМЕНЕНИЕ: ID берется из выбранной строки
+            if (!int.TryParse(dgvOrders.SelectedRows[0].Cells["ID"].Value.ToString(), out int orderId)) return;
             var order = OrderingSystem.Orders.FirstOrDefault(o => o.ID == orderId);
 
             if (order != null && order.ClosureTime.HasValue)
             {
-                string receipt = order.GenerateReceipt(order.TableID, order.WaiterID);
+                // ИСПРАВЛЕНИЕ ОШИБКИ: Вызов без аргументов
+                string receipt = order.GenerateReceipt(); 
                 MessageBox.Show(receipt, $"Чек для заказа ID {orderId}");
             }
-            else
+            else if (order != null && !order.ClosureTime.HasValue)
             {
-                MessageBox.Show("Чек может быть выведен только для закрытого заказа.", "Ошибка");
+                MessageBox.Show("Сначала необходимо закрыть заказ.", "Ошибка");
             }
         }
     }

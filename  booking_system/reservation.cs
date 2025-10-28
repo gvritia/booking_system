@@ -24,15 +24,29 @@ public class Reservation
         AssignedTable.UpdateSchedule(StartTime, EndTime, ID, true);
     }
 
+    // ИСПРАВЛЕНИЕ: Корректная обработка изменения времени бронирования
     public void Update(string newName, string newPhone, DateTime newStart, DateTime newEnd, string newComment)
     {
-        // Для простоты: изменение брони не включает изменение стола.
-        // Если меняется время, это должно обрабатываться через отмену и создание новой.
+        bool timeChanged = StartTime != newStart || EndTime != newEnd;
+
+        if (timeChanged && AssignedTable != null)
+        {
+            // Сначала отменяем старую бронь в расписании
+            AssignedTable.UpdateSchedule(StartTime, EndTime, ID, false); 
+        }
+
         ClientName = newName;
         ClientPhone = newPhone;
         StartTime = newStart;
         EndTime = newEnd;
         Comment = newComment;
+
+        if (timeChanged && AssignedTable != null)
+        {
+            // Затем записываем новую бронь в расписание
+            // Требуется дополнительная проверка на доступность стола в UI/BookingSystem перед вызовом!
+            AssignedTable.UpdateSchedule(StartTime, EndTime, ID, true); 
+        }
     }
 
     public void Cancel()
